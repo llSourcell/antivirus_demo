@@ -10,16 +10,16 @@ import argparse
 
 def get_entropy(data):
     if len(data) == 0:
-	return 0.0
+        return 0.0
     occurences = array.array('L', [0]*256)
     for x in data:
-  	occurences[x if isinstance(x, int) else ord(x)] += 1
+        occurences[x if isinstance(x, int) else ord(x)] += 1
 
     entropy = 0
     for x in occurences:
-	if x:
-	    p_x = float(x) / len(data)
-	    entropy -= p_x*math.log(p_x, 2)
+        if x:
+            p_x = float(x) / len(data)
+            entropy -= p_x*math.log(p_x, 2)
 
     return entropy
 
@@ -28,7 +28,7 @@ def get_resources(pe):
     [entropy, size]"""
     resources = []
     if hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
-	try:
+        try:
             for resource_type in pe.DIRECTORY_ENTRY_RESOURCE.entries:
                 if hasattr(resource_type, 'directory'):
                     for resource_id in resource_type.directory.entries:
