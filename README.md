@@ -25,6 +25,10 @@ Basic Usage
 
 That's it!
 
+Alternative Usage 
+===========
+
+You can also use the jupyter notebook provided in this repo to have a little more interactivity with the learning script. Simply run ```jupyter notebook virus_classifier.ipynb``` 
 Credits
 ===========
 Credit for the vast majority of code here goes to [Te-k](https://github.com/Te-k). I've merely created a wrapper around all of the important functions to get people started.
