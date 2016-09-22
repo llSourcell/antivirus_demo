@@ -58,7 +58,7 @@ print('\nWinner algorithm is %s with a %f %% success' % (winner, results[winner]
 # Save the algorithm and the feature list for later predictions
 print('Saving algorithm and feature list in classifier directory...')
 joblib.dump(algorithms[winner], 'classifier/classifier.pkl')
-open('classifier/features.pkl', 'w').write(pickle.dumps(features))
+open('classifier/features.pkl', 'wb').write(pickle.dumps(features))
 print('Saved')
 
 # Identify false and true positive rates
