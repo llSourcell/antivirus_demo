@@ -1,15 +1,16 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 import argparse
-import pickle
-import requests
-import sys
 import os
-from sklearn.externals import joblib
+import pickle
+import sys
+
+import joblib
+import requests
 
 MACHINE_TYPES = {
     "IMAGE_FILE_MACHINE_UNKNOWN": 0,
     "IMAGE_FILE_MACHINE_I386": 0x014c,
-    "IMAGE_FILE_MACHINE_R3000":	0x0162,
+    "IMAGE_FILE_MACHINE_R3000": 0x0162,
     "IMAGE_FILE_MACHINE_R4000": 0x0166,
     "IMAGE_FILE_MACHINE_R10000": 0x0168,
     "IMAGE_FILE_MACHINE_WCEMIPSV2": 0x0169,
@@ -33,7 +34,7 @@ MACHINE_TYPES = {
     "IMAGE_FILE_MACHINE_CEF": 0x0CEF,
     "IMAGE_FILE_MACHINE_EBC": 0x0EBC,
     "IMAGE_FILE_MACHINE_AMD64": 0x8664,
-    "IMAGE_FILE_MACHINE_M32R": 	0x9041,
+    "IMAGE_FILE_MACHINE_M32R": 0x9041,
     "IMAGE_FILE_MACHINE_CEE": 0xC0EE
 }
 
@@ -72,21 +73,21 @@ SUBSYSTEMS = {
 }
 
 DLL_CHARACTERISTICS = {
-	"IMAGE_LIBRARY_PROCESS_INIT": 0x0001,
-	"IMAGE_LIBRARY_PROCESS_TERM": 0x0002,
-	"IMAGE_LIBRARY_THREAD_INIT": 0x0004,
-	"IMAGE_LIBRARY_THREAD_TERM": 0x0008,
-	"IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA": 0x0020,
-	"IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE": 0x0040,
-	"IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY": 0x0080,
-	"IMAGE_DLLCHARACTERISTICS_NX_COMPAT": 0x0100,
-	"IMAGE_DLLCHARACTERISTICS_NO_ISOLATION": 0x0200,
-	"IMAGE_DLLCHARACTERISTICS_NO_SEH": 0x0400,
-	"IMAGE_DLLCHARACTERISTICS_NO_BIND": 0x0800,
-	"IMAGE_DLLCHARACTERISTICS_APPCONTAINER": 0x1000,
-	"IMAGE_DLLCHARACTERISTICS_WDM_DRIVER": 0x2000,
-	"IMAGE_DLLCHARACTERISTICS_GUARD_CF": 0x4000,
-	"IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE": 0x8000
+    "IMAGE_LIBRARY_PROCESS_INIT": 0x0001,
+    "IMAGE_LIBRARY_PROCESS_TERM": 0x0002,
+    "IMAGE_LIBRARY_THREAD_INIT": 0x0004,
+    "IMAGE_LIBRARY_THREAD_TERM": 0x0008,
+    "IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA": 0x0020,
+    "IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE": 0x0040,
+    "IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY": 0x0080,
+    "IMAGE_DLLCHARACTERISTICS_NX_COMPAT": 0x0100,
+    "IMAGE_DLLCHARACTERISTICS_NO_ISOLATION": 0x0200,
+    "IMAGE_DLLCHARACTERISTICS_NO_SEH": 0x0400,
+    "IMAGE_DLLCHARACTERISTICS_NO_BIND": 0x0800,
+    "IMAGE_DLLCHARACTERISTICS_APPCONTAINER": 0x1000,
+    "IMAGE_DLLCHARACTERISTICS_WDM_DRIVER": 0x2000,
+    "IMAGE_DLLCHARACTERISTICS_GUARD_CF": 0x4000,
+    "IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE": 0x8000
 }
 
 
@@ -95,13 +96,14 @@ def get_data(url):
     r = requests.get(url)
     return r.json()
 
+
 def feature_extraction(data):
     """Extract the features from manalyzer data"""
     features = {}
     md5 = data.keys()[0]
     data = data[md5]
     features['md5'] = md5
-    features['Machine']= MACHINE_TYPES[data['PE Header']['Machine']]
+    features['Machine'] = MACHINE_TYPES[data['PE Header']['Machine']]
     features['SizeOfOptionalHeader'] = data['PE Header']['SizeOfOptionalHeader']
     features['Characteristics'] = 0
     for charac in data['PE Header']['Characteristics']:
@@ -137,18 +139,21 @@ def feature_extraction(data):
 
     # Sections
     features['SectionsNb'] = len(data['Sections'])
-    entropy = map(lambda x:x['Entropy'], data['Sections'].values())
-    features['SectionsMeanEntropy'] = sum(entropy) / float(len(entropy))
-    features['SectionsMinEntropy'] = min(entropy)
-    features['SectionsMaxEntropy'] = max(entropy)
-    raw_sizes = map(lambda x:x['SizeOfRawData'], data['Sections'].values())
-    features['SectionsMeanRawsize'] = sum(raw_sizes) / float(len(raw_sizes))
-    features['SectionsMinRawsize'] = min(raw_sizes)
-    features['SectionsMaxRawsize'] = max(raw_sizes)
-    virtual_sizes = map(lambda x:x['VirtualSize'], data['Sections'].values())
-    features['SectionsMeanVirtualsize'] = sum(virtual_sizes) / float(len(virtual_sizes))
-    features['SectionsMinVirtualsize'] = min(virtual_sizes)
-    features['SectionsMaxVirtualsize'] = max(virtual_sizes)
+    entropy = map(lambda x: x['Entropy'], data['Sections'].values())
+    entropy_list = list(entropy)
+    features['SectionsMeanEntropy'] = sum(entropy_list) / float(len(entropy_list))
+    features['SectionsMinEntropy'] = min(entropy_list)
+    features['SectionsMaxEntropy'] = max(entropy_list)
+    raw_sizes = map(lambda x: x['SizeOfRawData'], data['Sections'].values())
+    raw_sizes_list = list(raw_sizes)
+    features['SectionsMeanRawsize'] = sum(raw_sizes_list) / float(len(raw_sizes_list))
+    features['SectionsMinRawsize'] = min(raw_sizes_list)
+    features['SectionsMaxRawsize'] = max(raw_sizes_list)
+    virtual_sizes = map(lambda x: x['VirtualSize'], data['Sections'].values())
+    virtual_sizes_list = list(virtual_sizes)
+    features['SectionsMeanVirtualsize'] = sum(virtual_sizes_list) / float(len(virtual_sizes_list))
+    features['SectionsMinVirtualsize'] = min(virtual_sizes_list)
+    features['SectionsMaxVirtualsize'] = max(virtual_sizes_list)
 
     # Imports
     if 'Imports' in data.keys():
@@ -161,11 +166,11 @@ def feature_extraction(data):
     # Resources
     if 'Resources' in data.keys():
         features['ResourcesNb'] = len(data['Resources'])
-        entropy = map(lambda x:x['Entropy'], data['Resources'].values())
+        entropy = map(lambda x: x['Entropy'], data['Resources'].values())
         features['ResourcesMeanEntropy'] = sum(entropy) / float(len(entropy))
         features['ResourcesMinEntropy'] = min(entropy)
         features['ResourcesMaxEntropy'] = max(entropy)
-        sizes = map(lambda x:x['Size'], data['Resources'].values())
+        sizes = map(lambda x: x['Size'], data['Resources'].values())
         features['ResourcesMeanSize'] = sum(sizes) / float(len(sizes))
         features['ResourcesMinSize'] = min(sizes)
         features['ResourcesMaxSize'] = max(sizes)
@@ -199,8 +204,8 @@ if __name__ == '__main__':
     features = pickle.loads(open(os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
         'classifier/features.pkl'),
-        'r').read()
-    )
+        'rb').read()
+                            )
 
     if 'manalyzer.org' not in args.URL:
         print('This is not a manalyzer url')
@@ -217,10 +222,9 @@ if __name__ == '__main__':
     else:
         # Extract the features
         data_pe = feature_extraction(data)
-        pe_features = map(lambda x:data_pe[x], features)
-        res= clf.predict([pe_features])[0]
+        pe_features = map(lambda x: data_pe[x], features)
+        res = clf.predict([pe_features])[0]
         print('The file %s is %s' % (
             data_pe['md5'],
             ['malicious', 'legitimate'][res])
-        )
-
+              )

@@ -1,40 +1,44 @@
-#! /usr/bin/python2
-import pefile
-import os
+#! /usr/bin/python3
+import argparse
 import array
 import math
+import os
 import pickle
-from sklearn.externals import joblib
 import sys
-import argparse
+
+import joblib
+import pefile
+
 
 def get_entropy(data):
     if len(data) == 0:
-	return 0.0
-    occurences = array.array('L', [0]*256)
+        return 0.0
+    occurences = array.array('L', [0] * 256)
     for x in data:
-  	occurences[x if isinstance(x, int) else ord(x)] += 1
+        occurences[x if isinstance(x, int) else ord(x)] += 1
 
     entropy = 0
     for x in occurences:
-	if x:
-	    p_x = float(x) / len(data)
-	    entropy -= p_x*math.log(p_x, 2)
+        if x:
+            p_x = float(x) / len(data)
+            entropy -= p_x * math.log(p_x, 2)
 
     return entropy
+
 
 def get_resources(pe):
     """Extract resources :
     [entropy, size]"""
     resources = []
     if hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
-	try:
+        try:
             for resource_type in pe.DIRECTORY_ENTRY_RESOURCE.entries:
                 if hasattr(resource_type, 'directory'):
                     for resource_id in resource_type.directory.entries:
                         if hasattr(resource_id, 'directory'):
                             for resource_lang in resource_id.directory.entries:
-                                data = pe.get_data(resource_lang.data.struct.OffsetToData, resource_lang.data.struct.Size)
+                                data = pe.get_data(resource_lang.data.struct.OffsetToData,
+                                                   resource_lang.data.struct.Size)
                                 size = resource_lang.data.struct.Size
                                 entropy = get_entropy(data)
 
@@ -42,6 +46,7 @@ def get_resources(pe):
         except Exception as e:
             return resources
     return resources
+
 
 def get_version_info(pe):
     """Return version infos"""
@@ -55,14 +60,15 @@ def get_version_info(pe):
             for var in fileinfo.Var:
                 res[var.entry.items()[0][0]] = var.entry.items()[0][1]
     if hasattr(pe, 'VS_FIXEDFILEINFO'):
-          res['flags'] = pe.VS_FIXEDFILEINFO.FileFlags
-          res['os'] = pe.VS_FIXEDFILEINFO.FileOS
-          res['type'] = pe.VS_FIXEDFILEINFO.FileType
-          res['file_version'] = pe.VS_FIXEDFILEINFO.FileVersionLS
-          res['product_version'] = pe.VS_FIXEDFILEINFO.ProductVersionLS
-          res['signature'] = pe.VS_FIXEDFILEINFO.Signature
-          res['struct_version'] = pe.VS_FIXEDFILEINFO.StrucVersion
+        res['flags'] = pe.VS_FIXEDFILEINFO.FileFlags
+        res['os'] = pe.VS_FIXEDFILEINFO.FileOS
+        res['type'] = pe.VS_FIXEDFILEINFO.FileType
+        res['file_version'] = pe.VS_FIXEDFILEINFO.FileVersionLS
+        res['product_version'] = pe.VS_FIXEDFILEINFO.ProductVersionLS
+        res['signature'] = pe.VS_FIXEDFILEINFO.Signature
+        res['struct_version'] = pe.VS_FIXEDFILEINFO.StrucVersion
     return res
+
 
 def extract_infos(fpath):
     res = {}
@@ -104,48 +110,53 @@ def extract_infos(fpath):
 
     # Sections
     res['SectionsNb'] = len(pe.sections)
-    entropy = map(lambda x:x.get_entropy(), pe.sections)
-    res['SectionsMeanEntropy'] = sum(entropy)/float(len(entropy))
-    res['SectionsMinEntropy'] = min(entropy)
-    res['SectionsMaxEntropy'] = max(entropy)
-    raw_sizes = map(lambda x:x.SizeOfRawData, pe.sections)
-    res['SectionsMeanRawsize'] = sum(raw_sizes)/float(len(raw_sizes))
-    res['SectionsMinRawsize'] = min(raw_sizes)
-    res['SectionsMaxRawsize'] = max(raw_sizes)
-    virtual_sizes = map(lambda x:x.Misc_VirtualSize, pe.sections)
-    res['SectionsMeanVirtualsize'] = sum(virtual_sizes)/float(len(virtual_sizes))
-    res['SectionsMinVirtualsize'] = min(virtual_sizes)
-    res['SectionMaxVirtualsize'] = max(virtual_sizes)
+    entropy = map(lambda x: x.get_entropy(), pe.sections)
+    entropy_list = list(entropy)
+    res['SectionsMeanEntropy'] = sum(entropy_list) / float(len(entropy_list))
+    res['SectionsMinEntropy'] = min(entropy_list)
+    res['SectionsMaxEntropy'] = max(entropy_list)
+    raw_sizes = map(lambda x: x.SizeOfRawData, pe.sections)
+    raw_sizes_list = list(raw_sizes)
+    res['SectionsMeanRawsize'] = sum(raw_sizes_list) / float(len(raw_sizes_list))
+    res['SectionsMinRawsize'] = min(raw_sizes_list)
+    res['SectionsMaxRawsize'] = max(raw_sizes_list)
+    virtual_sizes = map(lambda x: x.Misc_VirtualSize, pe.sections)
+    virtual_sizes_list = list(virtual_sizes)
+    res['SectionsMeanVirtualsize'] = sum(virtual_sizes_list) / float(len(virtual_sizes_list))
+    res['SectionsMinVirtualsize'] = min(virtual_sizes_list)
+    res['SectionMaxVirtualsize'] = max(virtual_sizes_list)
 
-    #Imports
+    # Imports
     try:
         res['ImportsNbDLL'] = len(pe.DIRECTORY_ENTRY_IMPORT)
         imports = sum([x.imports for x in pe.DIRECTORY_ENTRY_IMPORT], [])
         res['ImportsNb'] = len(imports)
-        res['ImportsNbOrdinal'] = len(filter(lambda x:x.name is None, imports))
+        res['ImportsNbOrdinal'] = len(list(filter(lambda x: x.name is None, imports)))
     except AttributeError:
         res['ImportsNbDLL'] = 0
         res['ImportsNb'] = 0
         res['ImportsNbOrdinal'] = 0
 
-    #Exports
+    # Exports
     try:
         res['ExportNb'] = len(pe.DIRECTORY_ENTRY_EXPORT.symbols)
     except AttributeError:
         # No export
         res['ExportNb'] = 0
-    #Resources
-    resources= get_resources(pe)
+    # Resources
+    resources = get_resources(pe)
     res['ResourcesNb'] = len(resources)
-    if len(resources)> 0:
-        entropy = map(lambda x:x[0], resources)
-        res['ResourcesMeanEntropy'] = sum(entropy)/float(len(entropy))
-        res['ResourcesMinEntropy'] = min(entropy)
-        res['ResourcesMaxEntropy'] = max(entropy)
-        sizes = map(lambda x:x[1], resources)
-        res['ResourcesMeanSize'] = sum(sizes)/float(len(sizes))
-        res['ResourcesMinSize'] = min(sizes)
-        res['ResourcesMaxSize'] = max(sizes)
+    if len(resources) > 0:
+        entropy = map(lambda x: x[0], resources)
+        entropy_list = list(entropy)
+        res['ResourcesMeanEntropy'] = sum(entropy_list) / float(len(entropy_list))
+        res['ResourcesMinEntropy'] = min(entropy_list)
+        res['ResourcesMaxEntropy'] = max(entropy_list)
+        sizes = map(lambda x: x[1], resources)
+        sizes_list = list(sizes)
+        res['ResourcesMeanSize'] = sum(sizes_list) / float(len(sizes_list))
+        res['ResourcesMinSize'] = min(sizes_list)
+        res['ResourcesMaxSize'] = max(sizes_list)
     else:
         res['ResourcesNb'] = 0
         res['ResourcesMeanEntropy'] = 0
@@ -161,7 +172,6 @@ def extract_infos(fpath):
     except AttributeError:
         res['LoadConfigurationSize'] = 0
 
-
     # Version configuration size
     try:
         version_infos = get_version_info(pe)
@@ -169,6 +179,7 @@ def extract_infos(fpath):
     except AttributeError:
         res['VersionInformationSize'] = 0
     return res
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Detect malicious files')
@@ -182,15 +193,15 @@ if __name__ == '__main__':
     features = pickle.loads(open(os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
         'classifier/features.pkl'),
-        'r').read()
-    )
+        'rb').read()
+                            )
 
     data = extract_infos(args.FILE)
 
-    pe_features = map(lambda x:data[x], features)
-
-    res= clf.predict([pe_features])[0]
+    pe_features = map(lambda x: data[x], features)
+    pe_features_list = list(pe_features)
+    res = clf.predict([pe_features_list])[0]
     print('The file %s is %s' % (
         os.path.basename(sys.argv[1]),
         ['malicious', 'legitimate'][res])
-    )
+          )
