@@ -1,9 +1,11 @@
-#!/usr/bin/env python2
-import pefile
-import os
-import hashlib
+#!/usr/bin/env python3
 import array
+import hashlib
 import math
+import os
+
+import pefile
+
 
 def get_md5(fname):
     hash_md5 = hashlib.md5()
@@ -12,33 +14,36 @@ def get_md5(fname):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
+
 def get_entropy(data):
     if len(data) == 0:
-	return 0.0
-    occurences = array.array('L', [0]*256)
+        return 0.0
+    occurences = array.array('L', [0] * 256)
     for x in data:
-  	occurences[x if isinstance(x, int) else ord(x)] += 1
+        occurences[x if isinstance(x, int) else ord(x)] += 1
 
     entropy = 0
     for x in occurences:
-	if x:
-	    p_x = float(x) / len(data)
-	    entropy -= p_x*math.log(p_x, 2)
+        if x:
+            p_x = float(x) / len(data)
+            entropy -= p_x * math.log(p_x, 2)
 
     return entropy
+
 
 def get_resources(pe):
     """Extract resources :
     [entropy, size]"""
     resources = []
     if hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
-	try:
+        try:
             for resource_type in pe.DIRECTORY_ENTRY_RESOURCE.entries:
                 if hasattr(resource_type, 'directory'):
                     for resource_id in resource_type.directory.entries:
                         if hasattr(resource_id, 'directory'):
                             for resource_lang in resource_id.directory.entries:
-                                data = pe.get_data(resource_lang.data.struct.OffsetToData, resource_lang.data.struct.Size)
+                                data = pe.get_data(resource_lang.data.struct.OffsetToData,
+                                                   resource_lang.data.struct.Size)
                                 size = resource_lang.data.struct.Size
                                 entropy = get_entropy(data)
 
@@ -46,6 +51,7 @@ def get_resources(pe):
         except Exception as e:
             return resources
     return resources
+
 
 def get_version_info(pe):
     """Return version infos"""
@@ -59,14 +65,15 @@ def get_version_info(pe):
             for var in fileinfo.Var:
                 res[var.entry.items()[0][0]] = var.entry.items()[0][1]
     if hasattr(pe, 'VS_FIXEDFILEINFO'):
-          res['flags'] = pe.VS_FIXEDFILEINFO.FileFlags
-          res['os'] = pe.VS_FIXEDFILEINFO.FileOS
-          res['type'] = pe.VS_FIXEDFILEINFO.FileType
-          res['file_version'] = pe.VS_FIXEDFILEINFO.FileVersionLS
-          res['product_version'] = pe.VS_FIXEDFILEINFO.ProductVersionLS
-          res['signature'] = pe.VS_FIXEDFILEINFO.Signature
-          res['struct_version'] = pe.VS_FIXEDFILEINFO.StrucVersion
+        res['flags'] = pe.VS_FIXEDFILEINFO.FileFlags
+        res['os'] = pe.VS_FIXEDFILEINFO.FileOS
+        res['type'] = pe.VS_FIXEDFILEINFO.FileType
+        res['file_version'] = pe.VS_FIXEDFILEINFO.FileVersionLS
+        res['product_version'] = pe.VS_FIXEDFILEINFO.ProductVersionLS
+        res['signature'] = pe.VS_FIXEDFILEINFO.Signature
+        res['struct_version'] = pe.VS_FIXEDFILEINFO.StrucVersion
     return res
+
 
 def extract_infos(fpath):
     res = []
@@ -108,46 +115,51 @@ def extract_infos(fpath):
     res.append(pe.OPTIONAL_HEADER.LoaderFlags)
     res.append(pe.OPTIONAL_HEADER.NumberOfRvaAndSizes)
     res.append(len(pe.sections))
-    entropy = map(lambda x:x.get_entropy(), pe.sections)
-    res.append(sum(entropy)/float(len(entropy)))
-    res.append(min(entropy))
-    res.append(max(entropy))
-    raw_sizes = map(lambda x:x.SizeOfRawData, pe.sections)
-    res.append(sum(raw_sizes)/float(len(raw_sizes)))
-    res.append(min(raw_sizes))
-    res.append(max(raw_sizes))
-    virtual_sizes = map(lambda x:x.Misc_VirtualSize, pe.sections)
-    res.append(sum(virtual_sizes)/float(len(virtual_sizes)))
-    res.append(min(virtual_sizes))
-    res.append(max(virtual_sizes))
-    #Imports
+    entropy = map(lambda x: x.get_entropy(), pe.sections)
+    entropy_list = list(entropy)
+    res.append(sum(entropy_list) / float(len(entropy_list)))
+    res.append(min(entropy_list))
+    res.append(max(entropy_list))
+    raw_sizes = map(lambda x: x.SizeOfRawData, pe.sections)
+    raw_sizes_list = list(raw_sizes)
+    res.append(sum(raw_sizes_list) / float(len(raw_sizes_list)))
+    res.append(min(raw_sizes_list))
+    res.append(max(raw_sizes_list))
+    virtual_sizes = map(lambda x: x.Misc_VirtualSize, pe.sections)
+    virtual_sizes_list = list(virtual_sizes)
+    res.append(sum(virtual_sizes_list) / float(len(virtual_sizes_list)))
+    res.append(min(virtual_sizes_list))
+    res.append(max(virtual_sizes_list))
+    # Imports
     try:
         res.append(len(pe.DIRECTORY_ENTRY_IMPORT))
         imports = sum([x.imports for x in pe.DIRECTORY_ENTRY_IMPORT], [])
         res.append(len(imports))
-        res.append(len(filter(lambda x:x.name is None, imports)))
+        res.append(len(filter(lambda x: x.name is None, imports)))
     except AttributeError:
         res.append(0)
         res.append(0)
         res.append(0)
-    #Exports
+    # Exports
     try:
         res.append(len(pe.DIRECTORY_ENTRY_EXPORT.symbols))
     except AttributeError:
         # No export
         res.append(0)
-    #Resources
-    resources= get_resources(pe)
+    # Resources
+    resources = get_resources(pe)
     res.append(len(resources))
-    if len(resources)> 0:
-        entropy = map(lambda x:x[0], resources)
-        res.append(sum(entropy)/float(len(entropy)))
-        res.append(min(entropy))
-        res.append(max(entropy))
-        sizes = map(lambda x:x[1], resources)
-        res.append(sum(sizes)/float(len(sizes)))
-        res.append(min(sizes))
-        res.append(max(sizes))
+    if len(resources) > 0:
+        entropy = map(lambda x: x[0], resources)
+        entropy_list = list(entropy)
+        res.append(sum(entropy_list) / float(len(entropy_list)))
+        res.append(min(entropy_list))
+        res.append(max(entropy_list))
+        sizes = map(lambda x: x[1], resources)
+        sizes_list = list(sizes)
+        res.append(sum(sizes_list) / float(len(sizes_list)))
+        res.append(min(sizes_list))
+        res.append(max(sizes_list))
     else:
         res.append(0)
         res.append(0)
@@ -169,6 +181,7 @@ def extract_infos(fpath):
     except AttributeError:
         res.append(0)
     return res
+
 
 if __name__ == '__main__':
     output = "data.csv"
@@ -233,7 +246,7 @@ if __name__ == '__main__':
         "legitimate"
     ]
 
-    ff = open(output, "a")
+    ff = open(output, "w")
     ff.write(csv_delimiter.join(columns) + "\n")
 
     # Launch legitimate
@@ -242,7 +255,7 @@ if __name__ == '__main__':
         try:
             res = extract_infos(os.path.join('legitimate/', ffile))
             res.append(1)
-            ff.write(csv_delimiter.join(map(lambda x:str(x), res)) + "\n")
+            ff.write(csv_delimiter.join(map(lambda x: str(x), res)) + "\n")
         except pefile.PEFormatError:
             print('\t -> Bad PE format')
 
@@ -252,7 +265,7 @@ if __name__ == '__main__':
             res = extract_infos(os.path.join('malicious/', ffile))
             res.append(0)
 
-            ff.write(csv_delimiter.join(map(lambda x:str(x), res)) + "\n")
+            ff.write(csv_delimiter.join(map(lambda x: str(x), res)) + "\n")
         except pefile.PEFormatError:
             print('\t -> Bad PE format')
         except:
